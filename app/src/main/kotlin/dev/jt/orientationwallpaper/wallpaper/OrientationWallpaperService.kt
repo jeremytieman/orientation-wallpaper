@@ -13,15 +13,16 @@ import dev.jt.orientationwallpaper.WallpaperSlot
 import dev.jt.orientationwallpaper.WallpaperStore
 import dev.jt.orientationwallpaper.data.DisplaySizes
 import dev.jt.orientationwallpaper.data.WallpaperLocations
-import dev.jt.orientationwallpaper.slotForSurface
+import dev.jt.orientationwallpaper.wallpaperSlot
 import java.io.File
 import java.util.concurrent.Executors
 
 /**
- * Live wallpaper that draws the portrait image or the landscape image from the
- * current surface size. Launcher page offsets are ignored so the crop stays
- * put instead of panning. Each engine owns its renderers, so the picker preview
- * and the real wallpaper do not share bitmaps.
+ * Live wallpaper that draws the portrait or landscape image for the current
+ * display, not the surface. Launchers can hand the engine a surface wider than
+ * the screen. Launcher page offsets are ignored so the crop stays put instead
+ * of panning. Each engine owns its renderers, so the picker preview and the
+ * real wallpaper do not share bitmaps.
  */
 class OrientationWallpaperService : WallpaperService() {
     override fun onCreateEngine(): Engine = OrientationEngine()
@@ -137,7 +138,9 @@ class OrientationWallpaperService : WallpaperService() {
                 val width = canvas.width
                 val height = canvas.height
                 if (width <= 0 || height <= 0) return
-                renderers.getValue(slotForSurface(width, height)).draw(canvas, width, height)
+                refreshDisplay()
+                val slot = wallpaperSlot(displayWidth, displayHeight, width, height)
+                renderers.getValue(slot).draw(canvas, width, height)
             } catch (error: Exception) {
                 Log.e(TAG, "draw failed", error)
             } finally {

@@ -3,16 +3,42 @@ package dev.jt.orientationwallpaper
 /**
  * Which stored image the wallpaper draws.
  *
- * A square surface counts as landscape (`width >= height`). Phones and tablets,
- * including large screens such as the Pixel Tablet, are distinguished only by
- * the surface dimensions the system gives the wallpaper engine.
+ * A square display counts as landscape (`width >= height`).
  */
 enum class WallpaperSlot(val filePrefix: String) {
     PORTRAIT("portrait"),
     LANDSCAPE("landscape"),
 }
 
-fun slotForSurface(width: Int, height: Int): WallpaperSlot {
+/**
+ * Image to draw for this display.
+ *
+ * The wallpaper surface is not the display. Launchers call
+ * `suggestDesiredDimensions` with a surface wider than the screen so a wallpaper
+ * can scroll, and that surface can be landscape-shaped while the device is
+ * portrait. The display size decides. The surface size is only a fallback for
+ * the moment before the display size is known.
+ */
+fun wallpaperSlot(
+    displayWidth: Int,
+    displayHeight: Int,
+    surfaceWidth: Int,
+    surfaceHeight: Int,
+): WallpaperSlot {
+    val width: Int
+    val height: Int
+    if (displayWidth > 0 && displayHeight > 0) {
+        width = displayWidth
+        height = displayHeight
+    } else {
+        width = surfaceWidth
+        height = surfaceHeight
+    }
+    return if (width >= height) WallpaperSlot.LANDSCAPE else WallpaperSlot.PORTRAIT
+}
+
+/** Aspect of one rectangle. Used for decode sizing, not for choosing the image. */
+fun slotForSize(width: Int, height: Int): WallpaperSlot {
     return if (width >= height) WallpaperSlot.LANDSCAPE else WallpaperSlot.PORTRAIT
 }
 
@@ -47,7 +73,7 @@ object DecodeTargets {
             if (
                 surfaceWidth > 0 &&
                 surfaceHeight > 0 &&
-                slotForSurface(surfaceWidth, surfaceHeight) == slot
+                slotForSize(surfaceWidth, surfaceHeight) == slot
             ) {
                 PixelSize(
                     width = maxOf(full.width, surfaceWidth),

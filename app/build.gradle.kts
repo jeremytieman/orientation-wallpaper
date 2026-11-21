@@ -26,29 +26,41 @@ val keystorePath = System.getenv("SIGNING_KEYSTORE_PATH").blankToNull()
 val keystorePassword = System.getenv("SIGNING_KEYSTORE_PASSWORD").blankToNull()
 val keyAlias = System.getenv("SIGNING_KEY_ALIAS").blankToNull()
 val keyPassword = System.getenv("SIGNING_KEY_PASSWORD").blankToNull()
-val signingRequested = listOf(keystoreBase64, keystorePath, keystorePassword, keyAlias, keyPassword).any { it != null }
+val decodedKeystore = layout.buildDirectory.file("signing/release.keystore")
 
-val releaseKeystore: File? = when {
-    !signingRequested -> null
-    keystorePassword == null || keyAlias == null || keyPassword == null ->
-        throw GradleException(
-            "Signing is partial. Set SIGNING_KEYSTORE_PASSWORD, SIGNING_KEY_ALIAS, and SIGNING_KEY_PASSWORD.",
-        )
-    keystoreBase64 == null && keystorePath == null ->
-        throw GradleException("Set SIGNING_KEYSTORE_BASE64 or SIGNING_KEYSTORE_PATH.")
-    keystorePath != null -> File(keystorePath).also { file ->
-        if (!file.isFile) throw GradleException("Keystore not found at ${file.absolutePath}")
-    }
-    else -> {
+// The keystore file is written only when a release packaging task runs.
+val prepareReleaseKeystore = tasks.register("prepareReleaseKeystore") {
+    group = "build"
+    description = "Checks release signing secrets and writes the keystore if it was provided as Base64."
+    doLast {
+        val missing = buildList {
+            if (keystorePassword == null) add("SIGNING_KEYSTORE_PASSWORD")
+            if (keyAlias == null) add("SIGNING_KEY_ALIAS")
+            if (keyPassword == null) add("SIGNING_KEY_PASSWORD")
+            if (keystoreBase64 == null && keystorePath == null) {
+                add("SIGNING_KEYSTORE_BASE64 or SIGNING_KEYSTORE_PATH")
+            }
+        }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Refusing to sign a release APK without the release keystore. " +
+                    "Missing: ${missing.joinToString(", ")}. " +
+                    "Debug signing is not used for release builds.",
+            )
+        }
+        if (keystorePath != null) {
+            val file = File(keystorePath)
+            if (!file.isFile) throw GradleException("Keystore not found at ${file.absolutePath}")
+            return@doLast
+        }
         val decoded = try {
             Base64.getMimeDecoder().decode(keystoreBase64)
         } catch (invalid: IllegalArgumentException) {
             throw GradleException("SIGNING_KEYSTORE_BASE64 is not valid Base64.", invalid)
         }
-        layout.buildDirectory.file("signing/release.keystore").get().asFile.apply {
-            parentFile.mkdirs()
-            writeBytes(decoded)
-        }
+        val out = decodedKeystore.get().asFile
+        out.parentFile.mkdirs()
+        out.writeBytes(decoded)
     }
 }
 
@@ -71,14 +83,12 @@ android {
     }
 
     signingConfigs {
-        if (releaseKeystore != null) {
-            create("release") {
-                storeFile = releaseKeystore
-                storePassword = keystorePassword
-                this.keyAlias = keyAlias
-                this.keyPassword = keyPassword
-                storeType = "PKCS12"
-            }
+        create("release") {
+            storeFile = if (keystorePath != null) File(keystorePath) else decodedKeystore.get().asFile
+            storePassword = keystorePassword ?: "missing"
+            this.keyAlias = keyAlias ?: "missing"
+            this.keyPassword = keyPassword ?: "missing"
+            storeType = "PKCS12"
         }
     }
 
@@ -86,12 +96,7 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = if (releaseKeystore != null) {
-                signingConfigs.getByName("release")
-            } else {
-                // Local builds and CI without the release secrets still produce an installable APK.
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -124,6 +129,12 @@ android {
 
 base {
     archivesName.set("OrientationWallpaper-$appVersionName")
+}
+
+tasks.configureEach {
+    if (name == "validateSigningRelease" || name == "packageRelease" || name == "signRelease") {
+        dependsOn(prepareReleaseKeystore)
+    }
 }
 
 tasks.register("assertNoGooglePlayServices") {

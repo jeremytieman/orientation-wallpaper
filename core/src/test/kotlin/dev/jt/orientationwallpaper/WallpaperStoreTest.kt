@@ -3,6 +3,7 @@ package dev.jt.orientationwallpaper
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -65,6 +66,32 @@ class WallpaperStoreTest {
         File(store.directory, "portrait.png").writeBytes(png())
         assertNull(store.imageFile(WallpaperSlot.PORTRAIT))
         assertEquals("portrait.png", store.imageFile(WallpaperSlot.LANDSCAPE)?.name)
+    }
+
+    @Test
+    fun stagingLeavesTheCurrentImageUntilCommit() {
+        val store = newStore()
+        store.import(WallpaperSlot.PORTRAIT, png().inputStream())
+        val staged = store.stage(jpeg().inputStream())
+        assertEquals("portrait.png", store.imageFile(WallpaperSlot.PORTRAIT)?.name)
+        assertEquals(1L, store.revision())
+        store.discard(staged)
+        assertFalse(staged.file.exists())
+        assertEquals("portrait.png", store.imageFile(WallpaperSlot.PORTRAIT)?.name)
+        assertEquals(1L, store.revision())
+    }
+
+    @Test
+    fun commitReplacesTheSlotAtomicallyAfterStaging() {
+        val store = newStore()
+        store.import(WallpaperSlot.PORTRAIT, png().inputStream())
+        val staged = store.stage(jpeg().inputStream())
+        store.commit(WallpaperSlot.PORTRAIT, staged)
+        store.discard(staged)
+        assertEquals("portrait.jpg", store.imageFile(WallpaperSlot.PORTRAIT)?.name)
+        assertEquals(2L, store.revision())
+        val leftovers = store.directory.listFiles()?.map { it.name }?.filter { it.startsWith("portrait.") }
+        assertEquals(listOf("portrait.jpg"), leftovers)
     }
 
     @Test

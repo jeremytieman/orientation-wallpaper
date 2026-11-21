@@ -108,30 +108,23 @@ class WallpaperViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun importSlot(slot: WallpaperSlot, input: java.io.InputStream) {
-        store.import(slot, input)
+        val staged = store.stage(input)
         try {
-            verifyDecodable(slot)
-        } catch (error: IOException) {
-            store.clear(slot)
-            throw error
+            decoder.decode(staged.file, PixelSize(48, 48)).recycle()
+            store.commit(slot, staged)
+        } finally {
+            store.discard(staged)
         }
     }
 
     private fun importBoth(input: java.io.InputStream) {
-        store.importBoth(input)
+        val staged = store.stage(input)
         try {
-            verifyDecodable(WallpaperSlot.PORTRAIT)
-            verifyDecodable(WallpaperSlot.LANDSCAPE)
-        } catch (error: IOException) {
-            store.clear(WallpaperSlot.PORTRAIT)
-            store.clear(WallpaperSlot.LANDSCAPE)
-            throw error
+            decoder.decode(staged.file, PixelSize(48, 48)).recycle()
+            store.commitBoth(staged)
+        } finally {
+            store.discard(staged)
         }
-    }
-
-    private fun verifyDecodable(slot: WallpaperSlot) {
-        val file = store.imageFile(slot) ?: throw IOException("Missing $slot image")
-        decoder.decode(file, PixelSize(48, 48)).recycle()
     }
 
     private suspend fun publish(message: UserMessage?) {

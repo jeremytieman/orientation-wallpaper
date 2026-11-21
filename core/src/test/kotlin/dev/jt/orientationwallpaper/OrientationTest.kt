@@ -5,16 +5,32 @@ import org.junit.Test
 
 class OrientationTest {
     @Test
-    fun choosesLandscapeWhenTheSurfaceIsWiderOrSquare() {
-        assertEquals(WallpaperSlot.LANDSCAPE, slotForSurface(1920, 1080))
-        assertEquals(WallpaperSlot.LANDSCAPE, slotForSurface(2560, 1600))
-        assertEquals(WallpaperSlot.LANDSCAPE, slotForSurface(1000, 1000))
+    fun choosesLandscapeWhenTheDisplayIsWiderOrSquare() {
+        assertEquals(WallpaperSlot.LANDSCAPE, wallpaperSlot(1920, 1080, 1920, 1080))
+        assertEquals(WallpaperSlot.LANDSCAPE, wallpaperSlot(2560, 1600, 2560, 1600))
+        assertEquals(WallpaperSlot.LANDSCAPE, wallpaperSlot(1000, 1000, 1000, 1000))
     }
 
     @Test
-    fun choosesPortraitWhenTheSurfaceIsTaller() {
-        assertEquals(WallpaperSlot.PORTRAIT, slotForSurface(1080, 2400))
-        assertEquals(WallpaperSlot.PORTRAIT, slotForSurface(1600, 2560))
+    fun choosesPortraitWhenTheDisplayIsTaller() {
+        assertEquals(WallpaperSlot.PORTRAIT, wallpaperSlot(1080, 2400, 1080, 2400))
+        assertEquals(WallpaperSlot.PORTRAIT, wallpaperSlot(1600, 2560, 1600, 2560))
+    }
+
+    @Test
+    fun wideScrollingSurfaceDoesNotOverrideAPortraitDisplay() {
+        assertEquals(WallpaperSlot.PORTRAIT, wallpaperSlot(1080, 2400, 3240, 2400))
+    }
+
+    @Test
+    fun tallSurfaceDoesNotOverrideALandscapeDisplay() {
+        assertEquals(WallpaperSlot.LANDSCAPE, wallpaperSlot(2400, 1080, 1080, 3200))
+    }
+
+    @Test
+    fun fallsBackToTheSurfaceWhenTheDisplaySizeIsUnknown() {
+        assertEquals(WallpaperSlot.PORTRAIT, wallpaperSlot(0, 0, 1080, 2400))
+        assertEquals(WallpaperSlot.LANDSCAPE, wallpaperSlot(0, 0, 1920, 1080))
     }
 
     @Test

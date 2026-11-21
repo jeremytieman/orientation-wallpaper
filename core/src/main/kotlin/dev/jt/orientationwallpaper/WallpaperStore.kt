@@ -7,6 +7,12 @@ import java.util.Properties
 
 class UnsupportedImageFormatException : Exception("Unsupported image format")
 
+/** A copied image that has not been assigned to a slot yet. */
+class StagedWallpaper(
+    val file: File,
+    val format: ImageFormat,
+)
+
 /**
  * Copies picked images into an app-private directory and remembers which file
  * belongs to each orientation. Callers pass the bytes; this class does not know
@@ -27,37 +33,61 @@ class WallpaperStore(val directory: File) {
         File(directory, name).takeIf { it.isFile }
     }
 
-    fun import(slot: WallpaperSlot, input: InputStream): ImageFormat = synchronized(lock) {
-        val staged = stage(input)
+    /**
+     * Copies [input] to a temp file and sniffs its format. Does not change either
+     * slot, so a later decode failure can discard it and leave the current wallpaper.
+     */
+    fun stage(input: InputStream): StagedWallpaper = synchronized(lock) {
+        val staged = stageFile(input)
         try {
-            val format = identifyOrThrow(staged)
-            val dest = publish(staged, fileName(slot, format))
-            deleteSiblings(slot, keep = dest.name)
-            writeState(readState().with(slot, dest.name).bump())
-            format
-        } finally {
-            if (staged.exists()) staged.delete()
+            StagedWallpaper(staged, identifyOrThrow(staged))
+        } catch (error: Exception) {
+            staged.delete()
+            throw error
         }
     }
 
-    fun importBoth(input: InputStream): ImageFormat = synchronized(lock) {
+    fun commit(slot: WallpaperSlot, staged: StagedWallpaper): ImageFormat = synchronized(lock) {
+        val dest = publish(staged.file, fileName(slot, staged.format))
+        deleteSiblings(slot, keep = dest.name)
+        writeState(readState().with(slot, dest.name).bump())
+        staged.format
+    }
+
+    fun commitBoth(staged: StagedWallpaper): ImageFormat = synchronized(lock) {
+        val portrait = publish(staged.file, fileName(WallpaperSlot.PORTRAIT, staged.format))
+        val landscape = publish(staged.file, fileName(WallpaperSlot.LANDSCAPE, staged.format))
+        deleteSiblings(WallpaperSlot.PORTRAIT, keep = portrait.name)
+        deleteSiblings(WallpaperSlot.LANDSCAPE, keep = landscape.name)
+        writeState(
+            WallpaperState(
+                revision = readState().revision + 1,
+                portrait = portrait.name,
+                landscape = landscape.name,
+            ),
+        )
+        staged.format
+    }
+
+    fun discard(staged: StagedWallpaper) {
+        if (staged.file.exists()) staged.file.delete()
+    }
+
+    fun import(slot: WallpaperSlot, input: InputStream): ImageFormat {
         val staged = stage(input)
-        try {
-            val format = identifyOrThrow(staged)
-            val portrait = publish(staged, fileName(WallpaperSlot.PORTRAIT, format))
-            val landscape = publish(staged, fileName(WallpaperSlot.LANDSCAPE, format))
-            deleteSiblings(WallpaperSlot.PORTRAIT, keep = portrait.name)
-            deleteSiblings(WallpaperSlot.LANDSCAPE, keep = landscape.name)
-            writeState(
-                WallpaperState(
-                    revision = readState().revision + 1,
-                    portrait = portrait.name,
-                    landscape = landscape.name,
-                ),
-            )
-            format
+        return try {
+            commit(slot, staged)
         } finally {
-            if (staged.exists()) staged.delete()
+            discard(staged)
+        }
+    }
+
+    fun importBoth(input: InputStream): ImageFormat {
+        val staged = stage(input)
+        return try {
+            commitBoth(staged)
+        } finally {
+            discard(staged)
         }
     }
 
@@ -66,7 +96,7 @@ class WallpaperStore(val directory: File) {
         writeState(readState().with(slot, null).bump())
     }
 
-    private fun stage(input: InputStream): File {
+    private fun stageFile(input: InputStream): File {
         directory.mkdirs()
         val temp = File(directory, ".import-${System.nanoTime()}.tmp")
         temp.outputStream().use { output -> input.copyTo(output) }

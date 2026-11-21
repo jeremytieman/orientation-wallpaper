@@ -32,4 +32,4 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Assemble, test, and lint
-        run: ./gradlew assemble test lint assertNoGooglePlayServices --stacktrace
+        run: ./gradlew assembleDebug test lint assertNoGooglePlayServices --stacktrace

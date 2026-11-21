@@ -16,21 +16,21 @@ The copies stay in the app, so deleting the originals does not clear the wallpap
 
 Changing the images reloads a wallpaper that is already set. The service is direct-boot aware and reads device-protected storage, so the images are available on the lock screen.
 
-Phones and large screens (including a Pixel Tablet) use the wallpaper surface size. Wider than tall, or square, shows the landscape image. Taller shows the portrait image. The picker activity is not locked to an orientation and lays the two previews side by side when the window is wide.
+Phones and large screens (including a Pixel Tablet) follow the display, not the wallpaper surface. Wider than tall, or square, shows the landscape image. Taller shows the portrait image. A launcher surface that is wider than the screen, which is what scrolling wallpapers ask for, does not change that choice. The picker activity is not locked to an orientation and lays the two previews side by side when the window is wide.
 
 ## Build
 
 JDK 21. Android SDK platform `android-37.2` and build-tools `37.0.0`.
 
 ```sh
-./gradlew assembleRelease test lint assertNoGooglePlayServices
+./gradlew assembleDebug test lint assertNoGooglePlayServices
 ```
+
+`assembleRelease` requires the signing secrets below. If they are missing it fails and does not sign with the debug keystore.
 
 `targetSdk` is 37 (Android 17, the current stable platform). `compileSdk` is 37.2 because the current stable Jetpack Compose release requires 37.1 or newer. `minSdk` is 26.
 
 `versionName` defaults to `1.0.0`. Pass `-PversionName=1.2.3` (a leading `v` is stripped) to override it. `versionCode` is `major * 1_000_000 + minor * 1_000 + patch`, so it increases for every normal semver bump while minor and patch stay below 1000. Play's ceiling is 2100000000.
-
-Without the signing secrets below, `assembleRelease` signs with the debug keystore so the project still builds. Do not publish that APK. Updates will not replace a copy signed with the release key.
 
 ## Signing secrets
 
@@ -71,7 +71,7 @@ Do not commit `release.keystore`. Store a copy somewhere you control, along with
 
 ## Releases and Obtainium
 
-Pushing a tag `v1.0.0`, `v1.0.1`, `v1.1.0`, … runs [`.github/workflows/release.yml`](.github/workflows/release.yml). The tag must be `v` plus `MAJOR.MINOR.PATCH`. The workflow checks the four secrets, builds a signed release APK whose `versionName` matches the tag, and attaches `OrientationWallpaper-<version>.apk` plus `SHA256SUMS` to the GitHub Release.
+Pushing a tag `v1.0.0`, `v1.0.1`, `v1.1.0`, … runs [`.github/workflows/release.yml`](.github/workflows/release.yml). The tag must be `v` plus `MAJOR.MINOR.PATCH`. The workflow checks the four secrets, builds a signed release APK whose `versionName` is the tag without the leading `v` (`v1.2.3` becomes `1.2.3`), and attaches `OrientationWallpaper-<version>.apk` plus `SHA256SUMS` to the GitHub Release.
 
 [Obtainium](https://github.com/ImranR98/Obtainium):
 
@@ -81,7 +81,7 @@ Pushing a tag `v1.0.0`, `v1.0.1`, `v1.1.0`, … runs [`.github/workflows/release
 
 The signing certificate has to stay the same across those releases or Android will reject the update.
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on pull requests and branch pushes: assemble (debug and release), unit tests, Android lint, and a check that the release classpath does not contain Play services, Firebase, or Play libraries.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on pull requests and branch pushes: `assembleDebug`, unit tests, Android lint, and a check that the release classpath does not contain Play services, Firebase, or Play libraries. Release packaging stays on the tag workflow, where the signing secrets are required.
 
 ## Layout
 
