@@ -24,8 +24,12 @@ if (appVersionCode !in 1..2_100_000_000) {
 val keystoreBase64 = System.getenv("SIGNING_KEYSTORE_BASE64").blankToNull()
 val keystorePath = System.getenv("SIGNING_KEYSTORE_PATH").blankToNull()
 val keystorePassword = System.getenv("SIGNING_KEYSTORE_PASSWORD").blankToNull()
-val keyAlias = System.getenv("SIGNING_KEY_ALIAS").blankToNull()
-val keyPassword = System.getenv("SIGNING_KEY_PASSWORD").blankToNull()
+// These names must not match SigningConfig properties. Inside signingConfigs { },
+// an unqualified `keyAlias` or `keyPassword` is the config property (still null),
+// so `keyAlias ?: "missing"` would store the literal placeholder and the real
+// SIGNING_KEY_ALIAS would never be used.
+val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS").blankToNull()
+val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD").blankToNull()
 val decodedKeystore = layout.buildDirectory.file("signing/release.keystore")
 
 // The keystore file is written only when a release packaging task runs.
@@ -35,8 +39,8 @@ val prepareReleaseKeystore = tasks.register("prepareReleaseKeystore") {
     doLast {
         val missing = buildList {
             if (keystorePassword == null) add("SIGNING_KEYSTORE_PASSWORD")
-            if (keyAlias == null) add("SIGNING_KEY_ALIAS")
-            if (keyPassword == null) add("SIGNING_KEY_PASSWORD")
+            if (signingKeyAlias == null) add("SIGNING_KEY_ALIAS")
+            if (signingKeyPassword == null) add("SIGNING_KEY_PASSWORD")
             if (keystoreBase64 == null && keystorePath == null) {
                 add("SIGNING_KEYSTORE_BASE64 or SIGNING_KEYSTORE_PATH")
             }
@@ -84,12 +88,16 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = if (keystorePath != null) File(keystorePath) else decodedKeystore.get().asFile
-            storePassword = keystorePassword ?: "missing"
-            this.keyAlias = keyAlias ?: "missing"
-            this.keyPassword = keyPassword ?: "missing"
             storeType = "PKCS12"
         }
+    }
+    // Assigned outside the SigningConfig receiver so the env values are not
+    // shadowed by storePassword / keyAlias / keyPassword on that receiver.
+    signingConfigs.getByName("release").apply {
+        storeFile = if (keystorePath != null) File(keystorePath) else decodedKeystore.get().asFile
+        storePassword = keystorePassword
+        keyAlias = signingKeyAlias
+        keyPassword = signingKeyPassword
     }
 
     buildTypes {

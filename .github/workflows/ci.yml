@@ -33,3 +33,47 @@ jobs:
 
       - name: Assemble, test, and lint
         run: ./gradlew assembleDebug test lint assertNoGooglePlayServices --stacktrace
+
+      - name: Sign a release with a throwaway keystore
+        run: |
+          set -euo pipefail
+          ./gradlew --stop
+          KEYSTORE="${RUNNER_TEMP}/throwaway.p12"
+          keytool -genkeypair -keystore "$KEYSTORE" -storetype PKCS12 \
+            -alias orientation-wallpaper -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass store-secret -keypass store-secret \
+            -dname "CN=Orientation Wallpaper CI, O=Test, C=US"
+          export SIGNING_KEYSTORE_BASE64="$(base64 -w 0 "$KEYSTORE")"
+          export SIGNING_KEYSTORE_PASSWORD=store-secret
+          export SIGNING_KEY_ALIAS=orientation-wallpaper
+          export SIGNING_KEY_PASSWORD=store-secret
+          ./gradlew assembleRelease -PversionName=0.0.1 --stacktrace
+          APK="app/build/outputs/apk/release/OrientationWallpaper-0.0.1-release.apk"
+          test -f "$APK"
+          APKSIGNER="${ANDROID_HOME}/build-tools/37.0.0/apksigner"
+          keytool -exportcert -keystore "$KEYSTORE" -alias orientation-wallpaper \
+            -storepass store-secret -file "${RUNNER_TEMP}/cert.der"
+          EXPECTED="$(sha256sum "${RUNNER_TEMP}/cert.der" | awk '{print $1}')"
+          ACTUAL="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/.*SHA-256 digest: //p' | head -n 1 | tr -d ':')"
+          echo "expected cert sha256: $EXPECTED"
+          echo "apk signer sha256:    $ACTUAL"
+          test "$EXPECTED" = "$ACTUAL"
+          "$APKSIGNER" verify --print-certs "$APK" | grep -q "Android Debug" && {
+            echo "Release APK was signed with the debug certificate"
+            exit 1
+          } || true
+
+      - name: Release build fails without signing secrets
+        run: |
+          set -euo pipefail
+          ./gradlew --stop
+          set +e
+          ./gradlew assembleRelease -PversionName=0.0.2 --stacktrace > "${RUNNER_TEMP}/unsigned-release.log" 2>&1
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "assembleRelease succeeded without signing secrets"
+            exit 1
+          fi
+          grep -q "Refusing to sign a release APK" "${RUNNER_TEMP}/unsigned-release.log"
+          grep -q "SIGNING_KEY_ALIAS" "${RUNNER_TEMP}/unsigned-release.log"
