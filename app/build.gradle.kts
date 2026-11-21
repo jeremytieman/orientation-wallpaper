@@ -132,7 +132,14 @@ base {
 }
 
 tasks.configureEach {
-    if (name == "validateSigningRelease" || name == "packageRelease" || name == "signRelease") {
+    if (
+        name == "validateSigningRelease" ||
+        name == "packageRelease" ||
+        name == "signRelease" ||
+        name == "bundleRelease" ||
+        name == "packageReleaseBundle" ||
+        name == "signReleaseBundle"
+    ) {
         dependsOn(prepareReleaseKeystore)
     }
 }

@@ -1,6 +1,7 @@
 package dev.jt.orientationwallpaper.wallpaper
 
 import android.graphics.Canvas
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.FileObserver
 import android.os.Handler
@@ -13,6 +14,8 @@ import dev.jt.orientationwallpaper.WallpaperSlot
 import dev.jt.orientationwallpaper.WallpaperStore
 import dev.jt.orientationwallpaper.data.DisplaySizes
 import dev.jt.orientationwallpaper.data.WallpaperLocations
+import dev.jt.orientationwallpaper.displaySizeChanged
+import dev.jt.orientationwallpaper.shouldListenForDisplayChanges
 import dev.jt.orientationwallpaper.wallpaperSlot
 import java.io.File
 import java.util.concurrent.Executors
@@ -20,9 +23,11 @@ import java.util.concurrent.Executors
 /**
  * Live wallpaper that draws the portrait or landscape image for the current
  * display, not the surface. Launchers can hand the engine a surface wider than
- * the screen. Launcher page offsets are ignored so the crop stays put instead
- * of panning. Each engine owns its renderers, so the picker preview and the
- * real wallpaper do not share bitmaps.
+ * the screen and can keep that surface the same size across rotation, so each
+ * engine also listens for display changes while it is visible. Launcher page
+ * offsets are ignored so the crop stays put instead of panning. Each engine
+ * owns its renderers, so the picker preview and the real wallpaper do not
+ * share bitmaps.
  */
 class OrientationWallpaperService : WallpaperService() {
     override fun onCreateEngine(): Engine = OrientationEngine()
@@ -43,6 +48,15 @@ class OrientationWallpaperService : WallpaperService() {
         private var surfaceReady = false
         private var visible = false
         private var destroyed = false
+        private var listeningForDisplay = false
+        private val displayManager = applicationContext.getSystemService(DisplayManager::class.java)
+        private val displayListener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) = onDisplayMetricsChanged()
+
+            override fun onDisplayRemoved(displayId: Int) = onDisplayMetricsChanged()
+
+            override fun onDisplayChanged(displayId: Int) = onDisplayMetricsChanged()
+        }
 
         private val renderers: Map<WallpaperSlot, OrientationRenderer> = WallpaperSlot.entries.associateWith { slot ->
             StaticImageRenderer(
@@ -66,6 +80,8 @@ class OrientationWallpaperService : WallpaperService() {
 
         override fun onDestroy() {
             destroyed = true
+            visible = false
+            updateDisplayListener()
             observer.stopWatching()
             renderers.values.forEach { it.release() }
             executor.shutdownNow()
@@ -96,10 +112,34 @@ class OrientationWallpaperService : WallpaperService() {
 
         override fun onVisibilityChanged(visible: Boolean) {
             this.visible = visible
+            updateDisplayListener()
             if (visible) {
                 refreshDisplay()
                 renderers.values.forEach { it.onContentChanged() }
                 drawFrame()
+            }
+        }
+
+        private fun onDisplayMetricsChanged() {
+            if (destroyed) return
+            val previousWidth = displayWidth
+            val previousHeight = displayHeight
+            refreshDisplay()
+            if (!displaySizeChanged(previousWidth, previousHeight, displayWidth, displayHeight)) return
+            renderers.values.forEach { it.onContentChanged() }
+            requestRedraw()
+        }
+
+        private fun updateDisplayListener() {
+            val shouldListen = shouldListenForDisplayChanges(visible, destroyed)
+            if (shouldListen == listeningForDisplay) return
+            val manager = displayManager ?: return
+            if (shouldListen) {
+                manager.registerDisplayListener(displayListener, mainHandler)
+                listeningForDisplay = true
+            } else {
+                manager.unregisterDisplayListener(displayListener)
+                listeningForDisplay = false
             }
         }
 

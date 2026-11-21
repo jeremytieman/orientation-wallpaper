@@ -16,7 +16,7 @@ The copies stay in the app, so deleting the originals does not clear the wallpap
 
 Changing the images reloads a wallpaper that is already set. The service is direct-boot aware and reads device-protected storage, so the images are available on the lock screen.
 
-Phones and large screens (including a Pixel Tablet) follow the display, not the wallpaper surface. Wider than tall, or square, shows the landscape image. Taller shows the portrait image. A launcher surface that is wider than the screen, which is what scrolling wallpapers ask for, does not change that choice. The picker activity is not locked to an orientation and lays the two previews side by side when the window is wide.
+Phones and large screens (including a Pixel Tablet) follow the display, not the wallpaper surface. Wider than tall, or square, shows the landscape image. Taller shows the portrait image. A launcher surface that is wider than the screen, which is what scrolling wallpapers ask for, does not change that choice. If that surface stays the same size when the device rotates, the wallpaper still switches: while it is visible it listens for display changes and redraws. The picker activity is not locked to an orientation and lays the two previews side by side when the window is wide.
 
 ## Build
 

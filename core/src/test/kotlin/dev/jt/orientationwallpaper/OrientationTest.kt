@@ -1,6 +1,8 @@
 package dev.jt.orientationwallpaper
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OrientationTest {
@@ -31,6 +33,24 @@ class OrientationTest {
     fun fallsBackToTheSurfaceWhenTheDisplaySizeIsUnknown() {
         assertEquals(WallpaperSlot.PORTRAIT, wallpaperSlot(0, 0, 1080, 2400))
         assertEquals(WallpaperSlot.LANDSCAPE, wallpaperSlot(0, 0, 1920, 1080))
+    }
+
+    @Test
+    fun fixedSurfaceSwitchesImageWhenTheDisplayRotates() {
+        val surfaceWidth = 3000
+        val surfaceHeight = 2400
+        assertEquals(WallpaperSlot.PORTRAIT, wallpaperSlot(1080, 2400, surfaceWidth, surfaceHeight))
+        assertEquals(WallpaperSlot.LANDSCAPE, wallpaperSlot(2400, 1080, surfaceWidth, surfaceHeight))
+        assertTrue(displaySizeChanged(1080, 2400, 2400, 1080))
+        assertFalse(displaySizeChanged(1080, 2400, 1080, 2400))
+    }
+
+    @Test
+    fun listensForDisplayChangesOnlyWhileVisible() {
+        assertTrue(shouldListenForDisplayChanges(visible = true, destroyed = false))
+        assertFalse(shouldListenForDisplayChanges(visible = false, destroyed = false))
+        assertFalse(shouldListenForDisplayChanges(visible = true, destroyed = true))
+        assertFalse(shouldListenForDisplayChanges(visible = false, destroyed = true))
     }
 
     @Test

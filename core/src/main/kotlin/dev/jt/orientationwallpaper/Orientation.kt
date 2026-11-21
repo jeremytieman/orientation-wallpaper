@@ -42,6 +42,25 @@ fun slotForSize(width: Int, height: Int): WallpaperSlot {
     return if (width >= height) WallpaperSlot.LANDSCAPE else WallpaperSlot.PORTRAIT
 }
 
+/**
+ * Whether the wallpaper should stay registered for display changes.
+ * A launcher can keep one surface across rotation, so the engine listens
+ * only while it is visible and drops the listener as soon as it is not.
+ */
+fun shouldListenForDisplayChanges(visible: Boolean, destroyed: Boolean): Boolean {
+    return visible && !destroyed
+}
+
+/** True when [refreshDisplay] observed a different pixel size, including a rotation. */
+fun displaySizeChanged(
+    previousWidth: Int,
+    previousHeight: Int,
+    newWidth: Int,
+    newHeight: Int,
+): Boolean {
+    return previousWidth != newWidth || previousHeight != newHeight
+}
+
 data class PixelSize(val width: Int, val height: Int) {
     init {
         require(width >= 0 && height >= 0) { "size must be non-negative, was ${width}x$height" }
