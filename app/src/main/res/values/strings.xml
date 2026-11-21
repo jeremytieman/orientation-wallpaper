@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Orientation Wallpaper</string>
+    <string name="wallpaper_description">One image for portrait, another for landscape. Switches when the screen rotates.</string>
+    <string name="headline">Two images. One wallpaper.</string>
+    <string name="subtitle">Pick a picture for portrait and one for landscape. The live wallpaper changes when the device rotates. The same picture can be used for both.</string>
+    <string name="portrait">Portrait</string>
+    <string name="landscape">Landscape</string>
+    <string name="choose_portrait">Choose portrait image</string>
+    <string name="choose_landscape">Choose landscape image</string>
+    <string name="no_image">No image yet</string>
+    <string name="same_image">Use one image for both</string>
+    <string name="set_wallpaper">Set wallpaper</string>
+    <string name="set_wallpaper_needs_both">Choose both images first.</string>
+    <string name="saving">Saving the image…</string>
+    <string name="footnote">Copies stay in the app, so the wallpaper remains if you delete the originals. Nothing leaves the device.</string>
+    <string name="version_footer">Version %1$s</string>
+    <string name="preview_portrait">Portrait wallpaper preview</string>
+    <string name="preview_landscape">Landscape wallpaper preview</string>
+    <string name="error_unsupported">That file isn\'t a PNG, JPEG, WebP, AVIF, or HEIC/HEIF image.</string>
+    <string name="error_open">Couldn\'t open that image.</string>
+    <string name="error_decode">Couldn\'t decode that image. AVIF and HEIC only work on Android versions that support them.</string>
+    <string name="error_chooser">Couldn\'t open the system wallpaper picker.</string>
+</resources>

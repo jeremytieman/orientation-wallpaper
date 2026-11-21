@@ -1,0 +1,34 @@
+[versions]
+agp = "9.5.2"
+# Same version AGP 9.5.2 bundles, and the version of the Compose compiler plugin.
+# Keep it in sync with the buildscript classpath in the root build.gradle.kts.
+kotlin = "2.2.10"
+# Latest stable platform. targetSdk stays the Android 17 major level (37).
+compileSdk = "37.2"
+buildTools = "37.0.0"
+minSdk = "26"
+targetSdk = "37"
+composeBom = "2026.11.01"
+activityCompose = "1.13.0"
+lifecycle = "2.11.1"
+exifinterface = "1.4.2"
+coroutines = "1.11.0"
+junit = "4.13.2"
+
+[libraries]
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-foundation = { module = "androidx.compose.foundation:foundation" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

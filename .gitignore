@@ -1,0 +1,17 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+*.apk
+*.aab
+*.ap_
+*.keystore
+*.jks
+*.idsig
+.cxx/
+*.hprof
+output-metadata.json
